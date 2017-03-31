@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vertexPosition;
+attribute vec4 vertexColor;
+varying vec4 color;
+uniform mat4 modelr;
+uniform mat4 camera;
+uniform mat4 projection;
+
+void main()
+{
+    mat4 pr = projection * camera * modelr;
+    //mat4 pr = modelr * camera;
+    gl_Position = pr * vertexPosition;
+    //gl_Position = modelr * vertexPosition;
+    //gl_Position = camera * gl_Position;
+    gl_Position.z = gl_Position.z;
+    color = vertexColor;
+}
+</script>
+
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec4 color;
+
+void main()
+{
+    gl_FragColor = color;
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/vmath.js"></script>
+<script type="text/javascript" src="CubeMain.js"></script>
+<script type="text/javascript" src="CubeHelper.js"></script>
+<script type="text/javascript" src="ProceduralVertexColorGeometry.js"></script>
+</head>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br />
+<button id="resetView">Reset View</button>
+
+<br />
+Twist Top Row   &nbsp &nbsp &nbsp
+<button id="topLeft">Left</button>
+<button id="topRight">Right</button>
+<br />
+Twist Middle Row 
+<button id="middleLeft">Left</button>
+<button id="middleRight">Right</button>
+<br />
+Twist Bottom Row
+<button id="bottomLeft">Left</button>
+<button id="bottomRight">Right</button>
+<br />
+
+<br />
+Twist Up   &nbsp  &nbsp
+<button id="leftUp">Left</button>
+<button id="middleUp">Middle</button>
+<button id="rightUp">Right</button>
+<br />
+Twist Down
+<button id="leftDown">Left</button>
+<button id="middleDown">Middle</button>
+<button id="rightDown">Right</button>
+<br />
+
+<br />
+Twist Left
+<button id="frontLeft">Front</button>
+<button id="centerLeft">Middle</button>
+<button id="backLeft">Back</button>
+<br />
+Twist Right
+<button id="frontRight">Front</button>
+<button id="centerRight">Middle</button>
+<button id="backRight">Back</button>
+<br />
+
+<br />
+<button id="SolveCube">Solve</button>
+Number of Randomizations: <input type="number" id="Randomizations" min="0" max="1000" step="1" value="0" />
+<button id="Randomize">Randomize!</button>
+<br />
+</body></html>
