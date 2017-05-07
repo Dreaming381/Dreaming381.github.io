@@ -267,6 +267,15 @@ function Mat4(r1, r2, r3, r4)
     return result;
 }
 
+function multMat4xVec4(mat, vec)
+{
+    var result = {};
+    result.x = dotProduct(mat[0], vec);
+    result.y = dotProduct(mat[1], vec);
+    result.z = dotProduct(mat[2], vec);
+    result.w = dotProduct(mat[3], vec);
+}
+
 function multMat4xMat4(a, b)
 {
     
@@ -352,12 +361,20 @@ function lookAt(cameraPos, cameraTarget) //assume camera always looks up for now
         Vec4(direction.x, direction.y, direction.z, -dotProduct(direction, eye)),
         Vec4(0, 0, 0, 1)
         );*/
+    
     return Mat4(
         Vec4(right.x, up.x, direction.x, 0),
         Vec4(right.y, up.y, direction.y, 0),
         Vec4(right.z, up.z, direction.z, 0),
         Vec4(-dotProduct(right, eye), -dotProduct(up, eye), dotProduct(direction, eye), 1)
         );
+
+    /*return Mat4(
+        Vec4(right.x, up.x, direction.x, 0),
+        Vec4(right.y, up.y, direction.y, 0),
+        Vec4(right.z, up.z, direction.z, 0),
+        Vec4(dotProduct(right, eye), dotProduct(up, eye), dotProduct(direction, eye), 1)
+        );*/
 }
 
 //Quaternion WIP

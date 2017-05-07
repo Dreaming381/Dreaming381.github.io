@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vertexPosition;
+attribute vec3 vertexNormal;
+varying vec4 worldPosition;
+varying vec3 fragNormalWS;
+//varying vec3 fragTangentWS;
+//uniform vec4 cameraPos;
+//uniform vec4 cameraDir;
+uniform mat4 camera;
+uniform mat4 projection;
+
+void main()
+{
+    mat4 pr = projection * camera;
+    gl_Position = pr * vertexPosition;
+    worldPosition = vertexPosition;
+    gl_Position.z = gl_Position.z;
+    fragNormalWS = vertexNormal;
+
+    //New Triplanar technique
+
+
+}
+</script>
+
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec4 worldPosition;
+varying vec3 fragNormalWS;
+//varying vec3 fragTangentWS;
+uniform vec3 cameraPos;
+uniform vec3 cameraDir;
+//uniform mat4 camera;
+//uniform mat4 projection;
+
+uniform sampler2D FloorAlbedoSampler;
+uniform sampler2D FloorNormalSampler;
+uniform sampler2D FloorSmoothnessSampler;
+
+uniform sampler2D WallAlbedoSampler;
+uniform sampler2D WallNormalSampler;
+uniform sampler2D WallSmoothnessSampler;
+
+void main()
+{
+    //Headlight attached to camera. Get light attenuation.
+    vec3 dir = worldPosition.xyz - cameraPos.xyz;
+    float dirddir = dot(normalize(dir), cameraDir.xyz);
+    float scaledangle = clamp((dirddir - 0.5) * 2.0, 0.0, 1.0);
+    float angleatten = scaledangle * scaledangle;
+    float atten = inversesqrt(length(dir)) * angleatten;
+
+    //New triplanar technique
+    float tileScale = 0.2;
+
+    vec3 blending = abs( fragNormalWS );
+    blending = normalize(max(blending, 0.00001)); // Force weights to sum to 1.0
+    float b = (blending.x + blending.y + blending.z);
+    blending /= vec3(b, b, b);
+
+    // in float scale
+    vec4 xaxis = texture2D( WallAlbedoSampler,  worldPosition.zy * tileScale);
+    vec4 yaxis = texture2D( FloorAlbedoSampler, worldPosition.xz * tileScale);
+    vec4 zaxis = texture2D( WallAlbedoSampler,  worldPosition.xy * tileScale);
+
+    vec4 albedo = xaxis * blending.x + yaxis * blending.y + zaxis * blending.z;
+
+    xaxis = texture2D(  WallNormalSampler, worldPosition.zy * tileScale);
+    yaxis = texture2D( FloorNormalSampler, worldPosition.xz * tileScale);
+    zaxis = texture2D(  WallNormalSampler, worldPosition.xy * tileScale);
+    vec4 nrm = xaxis * blending.x + yaxis * blending.y + zaxis * blending.z;
+    nrm = nrm * 2.0 - 1.0;
+
+    xaxis = texture2D(  WallSmoothnessSampler, worldPosition.zy * tileScale);
+    yaxis = texture2D( FloorSmoothnessSampler, worldPosition.xz * tileScale);
+    zaxis = texture2D(  WallSmoothnessSampler, worldPosition.xy * tileScale);
+    float Smoothness = xaxis.x * blending.x + yaxis.x * blending.y + zaxis.x * blending.z;
+    
+
+    //Ref: https://www.gamedev.net/topic/552411-calculate-tangent-from-normal/
+    vec3 tangent;
+
+    vec3 c1 = cross(fragNormalWS, vec3(0.0, 0.0, 1.0));
+    vec3 c2 = cross(fragNormalWS, vec3(0.0, 1.0, 0.0));
+
+    if( length(c1) > length(c2) )
+    {
+        tangent = c1;
+    }
+    else
+    {
+        tangent = c2;
+    }
+
+    normalize(tangent);
+
+    vec3 bitangent = cross(tangent, fragNormalWS);
+
+    //Ref: http://www.gamasutra.com/blogs/RobertBasler/20131122/205462/Three_Normal_Mapping_Techniques_Explained_For_the_Mathematically_Uninclined.php?print=1
+    vec3 tt = tangent.xyz;
+    vec3 bb = cross( fragNormalWS, tangent.xyz );
+    //mat3 tbn = mat3( tt, bb, fragNormalWS );
+    mat3 tbn = -mat3(vec3(tt.x, bb.x, fragNormalWS.x), vec3(tt.y, bb.y, fragNormalWS.y), vec3(tt.z, bb.z, fragNormalWS.z));
+
+    //Assume Metallic is 0 (because that's what the textures looked like)
+    float Metallic = 0.0;
+
+    //Calculate PBR, Heavily based on Unity's PBR algorithms (since I'm using Unity-targeted textures)
+    vec3 DiffuseLighting;
+    vec3 SpecularLighting;
+
+    vec3 V = normalize(dir);
+    vec3 N = normalize(tbn*nrm.xyz);
+    vec3 T = tangent;
+
+    float NdotV = abs(dot(N, V)); //Other algorithm was messy.
+
+    vec3 B = cross(N, T); //Bitangent
+    float TdotV = dot(T, V);
+    float BdotV = dot(B, V);
+    
+    float PerceptualRoughness = 1.0 - Smoothness;
+    float Roughness = PerceptualRoughness * PerceptualRoughness;
+   
+    vec3 L = V; //Because headlight is at camera.
+    vec3 H = V; //Nice!
+    float NdotL = abs(dot(N, L)); //light is aligned with view, so if this is negative, that's my fault.
+    float NdotH = NdotL; //Nice
+    float LdotV = clamp(dot(L, V), 0.0, 1.0); //Pretty sure this is just 1
+    float LdotH = LdotV;
+
+    float Illuminance = NdotL;
+
+    vec3 DiffuseColor = albedo.rgb;
+    vec3 Fresnel0 = vec3(0.03, 0.03, 0.03);
+
+    //BSDF
+    //DisneyDiffuse
+    float fd90 = 0.5 + 2.0 * LdotH * LdotH * PerceptualRoughness;
+    float x = 1.0 - NdotL;
+    float x5 = x * x;
+    x5 = x5 * x5 * x;
+    float lightScatter = (fd90 - 1.0) * x5 + 1.0;
+    x = 1.0 - NdotV;
+    x5 = x * x;
+    x5 = x5 * x5 * x;
+    float viewScatter = (fd90 - 1.0) * x5 + 1.0;
+
+    float DiffuseTerm = lightScatter * viewScatter / 3.1415926535897932384626433832795;
+
+    //Visibility
+    float a = Roughness;
+    float a2 = a*a;
+    float lambdaV = NdotL * sqrt((-NdotV * a2 + NdotV) * NdotV + a2);
+    float lambdaL = NdotV * sqrt((-NdotL * a2 + NdotL) * NdotL + a2);
+    float Vis = 0.5 / (lambdaV + lambdaL + 0.00000001);
+
+    //D - I honestly can't remember what this was called as I am working it out, but I remember it being crucial to energy conservation
+    float d = (NdotH * a2 - NdotH) * NdotH + 1.0;
+    float D = a2 / (d * d + 0.00001) / 3.1415926535897932384626433832795; //Maybe one day I'll figure out how to do separate functions and constants in WebGL's shading language.
+
+    //Specular
+    float SpecularTerm = Vis * D * 3.1415926535897932384626433832795;
+    SpecularTerm = sqrt(max(0.0001, SpecularTerm)); //We're stuck in gamma space atm.
+    SpecularTerm = max(0.0, SpecularTerm * NdotL); //This is a case for Metal API, but since this is WebGL, better safe than sorry.
+
+    float SurfaceReduction = 1.0 - 0.28*Roughness*PerceptualRoughness;
+    vec3 gidiffuse = vec3(0.0001, 0.0001, 0.0001); //Just so that we see something.
+    vec3 gispecular = vec3(0.00003, 0.00003, 0.00003); //Again, just to see something.
+    vec3 lightcolor = vec3(1.0, 1.0, 1.5) * atten;
+    float OneMinusDielectricSpec = 1.0 - 0.220916301;
+    float OneMinusReflectivity = OneMinusDielectricSpec - Metallic;
+    float GrazingTerm = clamp(Smoothness + 1.0 - OneMinusReflectivity, 0.0, 1.0);
+    vec3 GrazingTerm3 = vec3(GrazingTerm, GrazingTerm, GrazingTerm);
+
+    //FresnelTerm is 1.
+    //Fresnel Lerp uses Fresnel0, GrazingTerm, and NdotV
+    float t = 1.0 - NdotV;
+    t = t*t*t*t*t;
+    vec3 FresnelLerp = mix(Fresnel0, GrazingTerm3, t);
+
+
+    vec3 color = DiffuseColor * (gidiffuse + lightcolor * DiffuseTerm) + SpecularTerm * lightcolor + SurfaceReduction * gispecular * FresnelLerp; //Fresnel is artifacting right now.
+    //gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); //Debug
+    //gl_FragColor = vec4(dir, 1.0); //Debug
+    //gl_FragColor = vec4(albedo.rgb, 1.0); //Debug
+    //gl_FragColor = vec4(texture2D(FloorNormalSampler, worldPosition.xy).rgb, 1.0);
+    //gl_FragColor = vec4(N, 1.0);
+    //gl_FragColor = vec4(atten*atten, atten*atten, atten*atten, 1.0);
+    gl_FragColor = vec4(color, 1.0);
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/vmathMaze.js"></script>
+<script type="text/javascript" src="MazeMain.js"></script>
+<script type="text/javascript" src="MazeHelper.js"></script>
+</head>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br />
+Textures from FreePBR
+</body></html>
