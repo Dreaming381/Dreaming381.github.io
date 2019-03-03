@@ -32,7 +32,7 @@ It turns out that Signal Source Asset is an `abstract` type of`
 ScriptableObject`. That’s convenient! So all we need to do is subclass
 `SignalSourceAsset` and override the abstract methods. Here’s a template:
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```csharp
 using System.Collections;
 using System.Collections.Generic;
 using Cinemachine;
@@ -55,7 +55,7 @@ public class TestShake : SignalSourceAsset
         rot = Quaternion.identity;
     }
 }
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
 
 You’ll want to set the `SignalDuration` to return how long the impulse should
 play. `GetSignal` is where the magic happens. That’s where you will want to call
