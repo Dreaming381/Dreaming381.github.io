@@ -53,6 +53,8 @@ var WallAlbedoID;
 var WallNormalID;
 var WallSmoothnessID;
 
+var loadedTextureCount = 0;
+
 window.onload = function init()
 {
     canvas = document.getElementById( "gl-canvas" );
@@ -330,6 +332,7 @@ function render()
         Vec4(0, 0, -1, 0)
         );*/
     var f = 1.0 / Math.tan( radians(60) / 2 );
+	var f2 = f * 9.0 / 16.0;
     /*var Perspective = Mat4(
         Vec4(f, 0, 0, 0),
         Vec4(0, f, 0, 0),
@@ -339,7 +342,7 @@ function render()
 
     //I have absolutely no clue why the x component got inverted in perspective, but this took way too long to figure out this and my translations got flipped somewhere.
     var Perspective = Mat4(
-        Vec4(f, 0, 0, 0),
+        Vec4(f2, 0, 0, 0),
         Vec4(0, f, 0, 0),
         Vec4(0, 0, (near + far) / (near - far), -1),
         Vec4(0, 0, 2 * near * far / (near - far), 0)

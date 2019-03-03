@@ -480,6 +480,9 @@ function handleTextureLoaded(image, texture)
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, null);
     //alert(image);
+	
+	loadedTextureCount = loadedTextureCount + 1;
+	document.getElementById("texCount").innerHTML = loadedTextureCount;
 }
 
 function handleTextureLoadedGray(image, texture)
@@ -492,4 +495,7 @@ function handleTextureLoadedGray(image, texture)
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, null);
     //alert("Here");
+	
+	loadedTextureCount = loadedTextureCount + 1;
+	document.getElementById("texCount").innerHTML = loadedTextureCount;
 }
